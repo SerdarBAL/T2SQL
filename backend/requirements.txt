@@ -1,0 +1,22 @@
+# --- Web / API ---
+fastapi
+uvicorn[standard]
+python-dotenv
+sse-starlette
+
+# --- Agent / LLM ---
+langgraph
+langchain
+langchain-google-genai
+
+# --- Database ---
+sqlalchemy
+psycopg[binary]
+
+# --- Data / ML (Faz 4'te aktif kullanılacak) ---
+pandas
+numpy
+
+# --- Dev / test ---
+pytest
+ruff
