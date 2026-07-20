@@ -1,0 +1,16 @@
+# Normalize line endings: keep LF in the repo, let Git handle checkout.
+* text=auto eol=lf
+
+# Windows-native scripts stay CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary artifacts — never touch
+*.csv binary
+*.pt  binary
+*.h5  binary
+*.pkl binary
+*.png binary
+*.jpg binary
+*.gif binary
