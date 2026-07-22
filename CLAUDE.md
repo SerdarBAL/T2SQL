@@ -1,35 +1,65 @@
-# CLAUDE.md — T2SQL Projesi
+# CLAUDE.md
 
-Agentic Text-to-SQL analitik & öngörü platformu. Detaylı gereksinimler `prd.md`, günlük plan `plan.md`.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## İletişim
-- Kullanıcı (Serdar) ile **sohbet Türkçe** olmalı.
-- Bu bir **öğrenme projesi**: SQL üretilirken/kullanılırken kullanıcıya öğretici biçimde **SQL açıkla**. Yeni SQL kavramları `docs/sql-notes.md`'ye kaydedilir.
-- İki bitiş hedefi: (1) AI engineer düzeyinde SQL, (2) güçlü deployment becerisi.
+Agentic Text-to-SQL analytics & forecasting platform on the Olist dataset. Full requirements in `prd.md`, day-by-day roadmap in `plan.md`, SQL learning notes in `docs/sql-notes.md`.
 
-## Ürün Dili
-- **v1 için UI metinleri ve agent özet (summary) çıktısı İngilizce** (PRD Bölüm 9.3). Çok dilli destek v2.
+## Working style (project-specific)
+- **Chat with the user (Serdar) in Turkish.**
+- This is a **learning project**: when SQL is generated or used, **explain the SQL** to the user in a teaching manner. New SQL concepts get recorded in `docs/sql-notes.md`.
+- Two end goals drive decisions: (1) SQL skill at the level an AI engineer needs, (2) strong deployment skills — treat the DevOps phase as substantial, not an afterthought.
 
-## Stack (kesin)
-- **LLM:** Gemini API (`langchain-google-genai`), provider-agnostic katman. (Claude Pro API olarak kullanılamaz.)
-- **Frontend:** Next.js 14 + React + TS + Tailwind + shadcn/ui + Framer Motion + Plotly.js
-- **Backend:** FastAPI + LangGraph + LangChain + SQLAlchemy/psycopg (SSE streaming)
-- **DB:** PostgreSQL 16, **Olist** dataset (read-only rol, yalnızca SELECT, statement timeout)
-- **Deploy:** Docker + Docker Compose + GitHub Actions CI/CD + Railway
+## Product language policy
+- **v1: all UI text and the agent's summary output are English** (PRD §9.3), even when the user asks the question in Turkish. Multi-language support is deferred to v2.
 
-## Fazlar (başlangıç Pzt 20 Tem 2026, ~25 gün, tahmini bitiş 13 Ağu)
+## Commands
+Backend lives in `backend/` with a project-local virtualenv at `backend/.venv` (Python 3.10).
 
-| Faz | Günler | Tarih | Konu | Çıktı |
-|-----|--------|-------|------|-------|
-| **0 — Kurulum & Veri** | 1–3 | 20–22 Tem | Repo iskeleti, Olist'i Postgres'e yükleme, SQL temelleri (SELECT/WHERE → JOIN/GROUP BY/aggregate → date_trunc) | Dolu Olist DB |
-| **1 — Agent Çekirdeği** | 4–9 | 23–28 Tem | FastAPI + Gemini, LangGraph (classify→schema→generate→validate→execute), **self-correction döngüsü** (max 3), summarize, window fonksiyonları | Soru → SQL → doğru sonuç |
-| **2 — Görselleştirme** | 10–11 | 29–30 Tem | `viz_spec` üretimi (bar/line/pie/table), `/api/chat` SSE streaming | Grafik/tablo döndüren API |
-| **3 — Frontend** | 12–16 | 31 Tem–4 Ağu | Next.js chat UI, streaming render, stepper, dinamik tablo (Framer Motion), Plotly paneli, SQL açıklama paneli, tema | Çalışan profesyonel UI |
-| **4 — LSTM** | 17–18 | 5–6 Ağu | Offline gelir zaman serisi eğitimi (PyTorch), inference düğümü, geçmiş+tahmin grafiği | Gelir tahmini canlı |
-| **5 — DevOps ⭐** | 19–23 | 7–11 Ağu | Multi-stage Docker, tam yığın compose, GitHub Actions CI (lint+test+build), Railway deploy (managed Postgres + backend + frontend), CD | Public URL'de canlı + CI/CD |
-| **6 — Cila & Portfolyo** | 24–25 | 12–13 Ağu | UX cila, rate limiting, README + mimari diyagram + demo GIF/video, sql-notes derleme | Portfolyoya hazır |
+```bash
+# Activate venv (Git Bash)         # or PowerShell: backend\.venv\Scripts\Activate.ps1
+source backend/.venv/Scripts/activate
 
-**Buffer/dinlenme günleri:** 7. gün (26 Tem), 14. gün (2 Ağu), 21. gün (9 Ağu).
-**Kritik yol:** Faz 1 (agent) ve Faz 3 (frontend) — en uzun/riskli kısımlar.
+# Install / update dependencies
+pip install -r backend/requirements.txt
 
-Her fazın sonunda commit + kısa demo. Bu plan yaşayan dokümandır; ilerledikçe güncellenir.
+# Run the API (from backend/ so `app.main` resolves)
+cd backend && uvicorn app.main:app --reload      # http://127.0.0.1:8000 , health: /api/health
+
+# Tests (all / single)
+cd backend && pytest
+cd backend && pytest tests/test_file.py::test_name
+
+# Lint
+cd backend && ruff check .
+```
+
+Docker / Postgres, CI/CD, and the Next.js frontend do not exist yet — they arrive in later phases (see roadmap). The frontend will be a separate Next.js app under `frontend/`.
+
+## Architecture (target design — being built incrementally)
+The system is a **provider-agnostic LLM agent** wrapping PostgreSQL:
+
+- **Backend** (`backend/app/`, FastAPI): exposes `/api/chat` (SSE streaming), `/api/schema`, `/api/health`.
+  - `agent/` — a **LangGraph state machine** is the core. Flow: `classify_intent → fetch_schema → generate_sql → validate_sql → execute_sql`, with a **self-correction loop** (on a Postgres error, feed the error + SQL + schema back to the LLM, retry up to `MAX_SELF_CORRECT_RETRIES=3`, then graceful fail) → `decide_forecast → forecast → decide_visualization → summarize`. State is a single `AgentState` TypedDict threaded through nodes.
+  - `db/` — SQLAlchemy/psycopg connection + schema introspection.
+  - LLM via `langchain-google-genai` (Gemini), behind an abstraction so OpenAI/Anthropic can swap in via `.env`.
+- **Data**: Olist (Brazilian e-commerce) in PostgreSQL 16. **Revenue is not a column** — it is `SUM(olist_order_items.price)` joined to `olist_orders.order_purchase_timestamp` via `order_id`. This JOIN is the most-used query pattern.
+- **ML** (`models/`): a **pretrained** LSTM for revenue time-series forecasting. Trained offline; at runtime the `forecast` node pulls a series via SQL, normalizes with a saved scaler, runs inference, denormalizes. No online retraining.
+- **Frontend** (`frontend/`, Next.js 14 + React + Tailwind + shadcn/ui + Framer Motion + Plotly.js): generic chat that animates a table/chart panel into view when results are tabular; a collapsible SQL-explanation panel serves the learning goal.
+
+## Security invariants (enforce in the agent)
+- **SELECT-only**: statically reject any SQL containing `INSERT/UPDATE/DELETE/DROP/ALTER/TRUNCATE/GRANT` in `validate_sql`.
+- App connects to Postgres with a **read-only role** (defense-in-depth) and a statement timeout (`SQL_STATEMENT_TIMEOUT_MS=10000`).
+- Secrets (Gemini key, DB URL) live only in `.env` (gitignored); `.env.example` documents the shape.
+
+## Roadmap phases (start Mon 2026-07-20, ~25 days)
+| Phase | Days | Topic | Output |
+|-------|------|-------|--------|
+| 0 — Setup & Data | 1–3 | Repo skeleton, load Olist into Postgres, SQL basics | Populated Olist DB |
+| 1 — Agent core | 4–9 | FastAPI + Gemini, LangGraph nodes, self-correction, summarize, window functions | Question → SQL → correct result |
+| 2 — Visualization | 10–11 | `viz_spec` generation, `/api/chat` SSE streaming | API returns chart/table specs |
+| 3 — Frontend | 12–16 | Next.js chat UI, streaming, stepper, dynamic table (Framer Motion), Plotly, SQL panel | Working professional UI |
+| 4 — LSTM | 17–18 | Offline revenue training (PyTorch), inference node, past+forecast chart | Forecasting live |
+| 5 — DevOps ⭐ | 19–23 | Multi-stage Docker, full-stack compose, GitHub Actions CI, Railway deploy + CD | Live public URL + CI/CD |
+| 6 — Polish | 24–25 | UX polish, rate limiting, README + demo, compile sql-notes | Portfolio-ready |
+
+Current status: **Phase 0**. Commit + short demo at the end of each phase. Critical path: Phase 1 (agent) and Phase 3 (frontend).

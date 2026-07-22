@@ -7,7 +7,8 @@ sse-starlette
 # --- Agent / LLM ---
 langgraph
 langchain
-langchain-google-genai
+langchain-groq            # aktif provider
+langchain-google-genai   # yedek provider
 
 # --- Database ---
 sqlalchemy

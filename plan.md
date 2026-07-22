@@ -36,7 +36,7 @@
 - Olist CSV'lerini Postgres'e yükle (`init.sql` / seed script). psql veya pgAdmin ile bağlan.
 - 🎓 **SQL:** `SELECT`, `WHERE`, `ORDER BY`, `LIMIT`, `DISTINCT`. Tabloları elle keşfet. `docs/sql-notes.md` başlat.
 
-### Gün 3 — Çar, 22 Tem
+### Gün 3 — Çar, 22 Tem ✅
 - 🎓 **SQL (önemli gün):** `JOIN` türleri (orders ↔ order_items ↔ products), `GROUP BY`, aggregate (`SUM`, `COUNT`, `AVG`), `HAVING`.
 - İlk gerçek analitik sorgu: **kategori bazında toplam gelir**. `date_trunc` ile aylık gelir zaman serisi (LSTM için de lazım olacak).
 - Bu sorguları `sql-notes.md`'ye açıklamalarıyla kaydet.
