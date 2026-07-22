@@ -24,11 +24,12 @@ class AgentState(TypedDict, total=False):
     is_valid_sql: bool
     validation_error: str
 
-    # --- execute_sql ---
+    # --- execute_sql / self_correct ---
     columns: list[str]
     rows: list[dict]
     row_count: int
     execution_error: str
+    correction_attempts: int
 
     # --- terminal ---
     answer: str

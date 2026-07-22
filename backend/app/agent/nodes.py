@@ -44,6 +44,22 @@ Question: {question}
 
 SQL:"""
 
+_SELF_CORRECT_PROMPT = """The SQL you wrote failed when run on PostgreSQL.
+Fix it. Return ONLY the corrected SQL query — no explanation, no markdown fences.
+
+Database schema (table(column type, ...)):
+{schema}
+
+Original question: {question}
+
+Failed SQL:
+{sql}
+
+PostgreSQL error:
+{error}
+
+Corrected SQL:"""
+
 
 # --- helpers -----------------------------------------------------------------
 
@@ -101,7 +117,7 @@ def execute_sql(state: AgentState) -> AgentState:
     try:
         result = run_select(state["sql"])
     except SQLAlchemyError as exc:
-        # Keep the raw Postgres message; the self-correction loop (Day 8)
+        # Keep the raw Postgres message; the self-correction loop
         # feeds it back to the LLM to repair the query.
         return {"execution_error": str(exc.orig) if exc.orig else str(exc)}
     return {
@@ -110,3 +126,23 @@ def execute_sql(state: AgentState) -> AgentState:
         "row_count": result["row_count"],
         "execution_error": "",
     }
+
+
+def self_correct(state: AgentState) -> AgentState:
+    """Feed the Postgres error + failed SQL + schema back to the LLM.
+
+    Returns a repaired SQL and bumps the attempt counter. The graph loops
+    self_correct -> execute_sql until it succeeds or hits the retry cap.
+    """
+    llm = get_llm()
+    raw = llm.invoke(
+        _SELF_CORRECT_PROMPT.format(
+            schema=state["schema_text"],
+            question=state["question"],
+            sql=state["sql"],
+            error=state["execution_error"],
+        )
+    )
+    fixed_sql = _strip_code_fences(str(raw.content))
+    attempts = state.get("correction_attempts", 0) + 1
+    return {"sql": fixed_sql, "correction_attempts": attempts}
