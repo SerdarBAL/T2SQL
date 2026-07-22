@@ -10,6 +10,7 @@ import re
 from app.agent.llm import get_llm
 from app.agent.sql_guard import SqlValidationError, validate_select_only
 from app.agent.state import AgentState
+from app.agent.viz import build_viz_spec
 from app.db.execute import SQLAlchemyError, run_select
 from app.db.schema import format_schema_for_prompt, get_schema_info
 
@@ -177,6 +178,12 @@ def self_correct(state: AgentState) -> AgentState:
     fixed_sql = _strip_code_fences(str(raw.content))
     attempts = state.get("correction_attempts", 0) + 1
     return {"sql": fixed_sql, "correction_attempts": attempts}
+
+
+def decide_visualization(state: AgentState) -> AgentState:
+    """Choose a chart type (bar/line/pie/table) from the result shape."""
+    spec = build_viz_spec(state.get("columns", []), state.get("rows", []))
+    return {"viz_spec": spec}
 
 
 # How many result rows to hand the LLM for summarization — enough to describe

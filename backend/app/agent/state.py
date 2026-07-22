@@ -31,6 +31,9 @@ class AgentState(TypedDict, total=False):
     execution_error: str
     correction_attempts: int
 
+    # --- decide_visualization ---
+    viz_spec: dict
+
     # --- summarize (terminal) ---
     answer: str
     sql_explanation: str

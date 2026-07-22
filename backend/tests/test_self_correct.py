@@ -51,10 +51,10 @@ def test_route_retries_on_error_until_cap():
         )
         == "summarize"
     )
-    # No error -> summarize the result.
+    # No error -> proceed to visualization, then summarize.
     assert (
         graph_module._route_after_execute(
             {"execution_error": "", "correction_attempts": 0}
         )
-        == "summarize"
+        == "decide_visualization"
     )

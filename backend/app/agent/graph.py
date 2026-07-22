@@ -8,6 +8,7 @@ from langgraph.graph import END, START, StateGraph
 
 from app.agent.nodes import (
     classify_intent,
+    decide_visualization,
     execute_sql,
     fetch_schema,
     generate_sql,
@@ -31,10 +32,9 @@ def _route_after_validate(state: AgentState) -> str:
 
 
 def _route_after_execute(state: AgentState) -> str:
-    """On a DB error, retry via self_correct until the retry cap is hit,
-    then summarize (success or graceful fail)."""
+    """Success -> pick a chart; error -> retry until cap, then summarize."""
     if not state.get("execution_error"):
-        return "summarize"
+        return "decide_visualization"
     max_retries = get_settings().max_self_correct_retries
     if state.get("correction_attempts", 0) >= max_retries:
         return "summarize"  # graceful fail: execution_error kept for summarize
@@ -50,6 +50,7 @@ def build_graph():
     graph.add_node("validate_sql", validate_sql)
     graph.add_node("execute_sql", execute_sql)
     graph.add_node("self_correct", self_correct)
+    graph.add_node("decide_visualization", decide_visualization)
     graph.add_node("summarize", summarize)
 
     graph.add_edge(START, "classify_intent")
@@ -68,10 +69,15 @@ def build_graph():
     graph.add_conditional_edges(
         "execute_sql",
         _route_after_execute,
-        {"self_correct": "self_correct", "summarize": "summarize"},
+        {
+            "self_correct": "self_correct",
+            "decide_visualization": "decide_visualization",
+            "summarize": "summarize",
+        },
     )
     # Corrected SQL goes back through the guard before re-running.
     graph.add_edge("self_correct", "validate_sql")
+    graph.add_edge("decide_visualization", "summarize")
     graph.add_edge("summarize", END)
 
     return graph.compile()

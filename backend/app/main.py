@@ -1,11 +1,25 @@
 """T2SQL FastAPI application entrypoint.
 
-Phase 0: minimal skeleton with a health check.
-The LangGraph agent, /api/chat (SSE), /api/schema endpoints are added in later phases.
+Endpoints:
+  GET  /api/health  — liveness check
+  POST /api/chat    — SSE stream of the agent answering a question
 """
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="T2SQL API", version="0.0.1")
+from app.api.chat import router as chat_router
+
+app = FastAPI(title="T2SQL API", version="0.1.0")
+
+# The Next.js frontend (Phase 3) runs on a different origin; allow it in dev.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(chat_router)
 
 
 @app.get("/api/health")
