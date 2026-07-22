@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: t2sql-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-t2sql}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-olist}
+      APP_READONLY_USER: ${APP_READONLY_USER:-t2sql_readonly}
+      APP_READONLY_PASSWORD: ${APP_READONLY_PASSWORD:-change-me}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # İlk açılışta sırayla çalışır: şema → veri yükleme → read-only rol
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      # CSV'ler container içinden görünsün (server-side COPY için gerekli)
+      - ./data/raw:/data/raw:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-t2sql} -d ${POSTGRES_DB:-olist}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
