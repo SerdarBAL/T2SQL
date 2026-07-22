@@ -4,6 +4,7 @@ Each node takes the current AgentState and returns a partial dict of the
 keys it updates. Day 5 covers: classify_intent, fetch_schema, generate_sql,
 validate_sql. execute_sql / self_correct / summarize arrive in later days.
 """
+import json
 import re
 
 from app.agent.llm import get_llm
@@ -59,6 +60,36 @@ PostgreSQL error:
 {error}
 
 Corrected SQL:"""
+
+# v1 language policy (PRD 9.3): the product always answers in English,
+# even when the user asked in another language.
+_SUMMARIZE_PROMPT = """Answer the user's question in clear, concise English,
+based only on the query result below. State the key numbers. Do not invent data.
+If the result is empty, say no matching data was found.
+
+Question: {question}
+
+Query result (first rows, JSON):
+{result}
+
+Answer:"""
+
+_EXPLAIN_SQL_PROMPT = """Explain the following SQL query to a learner in 2-4 short
+sentences of English. Cover what it selects, the joins, and any aggregation.
+Be concrete but brief.
+
+SQL:
+{sql}
+
+Explanation:"""
+
+_CHITCHAT_PROMPT = """You are T2SQL, an assistant that answers questions about a
+Brazilian e-commerce database. Reply briefly in English. If the user is just
+greeting or chatting, respond warmly and invite them to ask a data question.
+
+User: {question}
+
+Reply:"""
 
 
 # --- helpers -----------------------------------------------------------------
@@ -146,3 +177,46 @@ def self_correct(state: AgentState) -> AgentState:
     fixed_sql = _strip_code_fences(str(raw.content))
     attempts = state.get("correction_attempts", 0) + 1
     return {"sql": fixed_sql, "correction_attempts": attempts}
+
+
+# How many result rows to hand the LLM for summarization — enough to describe
+# the answer without blowing up the prompt on large result sets.
+_SUMMARY_ROW_SAMPLE = 50
+
+
+def summarize(state: AgentState) -> AgentState:
+    """The single exit node: turn whatever happened into an English answer.
+
+    Three cases: non-SQL chitchat, a query that failed all retries (graceful
+    fail), and a successful result (answer + learner-facing SQL explanation).
+    """
+    llm = get_llm()
+
+    # Case 1: not a data question — just reply.
+    if state.get("intent") != "sql_question":
+        raw = llm.invoke(_CHITCHAT_PROMPT.format(question=state["question"]))
+        return {"answer": str(raw.content).strip()}
+
+    # Case 2: SQL question that never produced a result.
+    if state.get("execution_error") or not state.get("is_valid_sql", False):
+        return {
+            "answer": (
+                "I couldn't answer that from the database. "
+                "Try rephrasing your question."
+            ),
+            "error": state.get("execution_error") or state.get("validation_error", ""),
+        }
+
+    # Case 3: success — summarize the data and explain the SQL.
+    sample = state.get("rows", [])[:_SUMMARY_ROW_SAMPLE]
+    result_json = json.dumps(sample, default=str, ensure_ascii=False)
+
+    answer_raw = llm.invoke(
+        _SUMMARIZE_PROMPT.format(question=state["question"], result=result_json)
+    )
+    explain_raw = llm.invoke(_EXPLAIN_SQL_PROMPT.format(sql=state["sql"]))
+
+    return {
+        "answer": str(answer_raw.content).strip(),
+        "sql_explanation": str(explain_raw.content).strip(),
+    }

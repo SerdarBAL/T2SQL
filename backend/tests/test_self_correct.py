@@ -44,17 +44,17 @@ def test_route_retries_on_error_until_cap():
         )
         == "self_correct"
     )
-    # Error + cap reached -> graceful fail (END).
+    # Error + cap reached -> graceful fail, hand off to summarize.
     assert (
         graph_module._route_after_execute(
             {"execution_error": "boom", "correction_attempts": max_retries}
         )
-        == graph_module.END
+        == "summarize"
     )
-    # No error -> done.
+    # No error -> summarize the result.
     assert (
         graph_module._route_after_execute(
             {"execution_error": "", "correction_attempts": 0}
         )
-        == graph_module.END
+        == "summarize"
     )

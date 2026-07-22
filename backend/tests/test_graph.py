@@ -30,3 +30,11 @@ def test_data_question_runs_and_returns_rows():
     assert result["execution_error"] == ""
     assert result["row_count"] >= 1
     assert result["columns"]  # at least one column returned
+
+
+def test_full_pipeline_ends_with_english_answer():
+    """Day 9: question -> ... -> summarize produces answer + SQL explanation."""
+    result = agent_graph.invoke({"question": "How many orders are there in total?"})
+
+    assert result["answer"]
+    assert result["sql_explanation"]
