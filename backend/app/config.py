@@ -18,6 +18,9 @@ class Settings:
     google_api_key: str = os.environ.get("GOOGLE_API_KEY", "")
 
     database_url: str = os.environ.get("DATABASE_URL", "")
+    # Writable connection for app metadata (conversation history) — separate
+    # from the read-only agent connection above.
+    app_database_url: str = os.environ.get("APP_DATABASE_URL", "")
 
     sql_statement_timeout_ms: int = int(os.environ.get("SQL_STATEMENT_TIMEOUT_MS", "10000"))
     max_self_correct_retries: int = int(os.environ.get("MAX_SELF_CORRECT_RETRIES", "3"))
