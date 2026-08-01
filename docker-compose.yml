@@ -10,7 +10,9 @@ services:
       APP_READONLY_USER: ${APP_READONLY_USER:-t2sql_readonly}
       APP_READONLY_PASSWORD: ${APP_READONLY_PASSWORD:-change-me}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # Host tarafı 15432: Windows'ta 5432, WinNAT'ın rezerve ettiği
+      # 5358-5457 aralığına düşüyor ve bind edilemiyor.
+      - "${POSTGRES_PORT:-15432}:5432"
     volumes:
       # İlk açılışta sırayla çalışır: şema → veri yükleme → read-only rol
       - ./db/init:/docker-entrypoint-initdb.d:ro
