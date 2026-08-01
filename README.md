@@ -114,7 +114,7 @@ ruff check .
 - ✅ Phase 0 — Postgres + Olist data loaded, SQL fundamentals
 - ✅ Phase 1 — LangGraph agent core: classify → generate → validate → execute → self-correct → summarize
 - ✅ Phase 2 — Visualization heuristic + `/api/chat` SSE streaming
-- 🚧 Phase 3 — Next.js chat UI (scaffolded, wiring in progress)
-- ⬜ Phase 4 — LSTM revenue forecasting
+- ✅ Phase 3 — Next.js chat UI (scaffolded, wiring in progress)
+- 🚧 Phase 4 — LSTM revenue forecasting
 - ⬜ Phase 5 — Docker Compose full stack, CI/CD, Railway deploy
 - ⬜ Phase 6 — Polish, rate limiting, demo
