@@ -45,3 +45,7 @@ Thumbs.db
 # --- Docker ---
 *.log
 .gstack/
+
+# --- Yerel çalışma dosyaları (repo'da tutuluyor ama GitHub'a gitmiyor) ---
+CLAUDE.md
+plan.md

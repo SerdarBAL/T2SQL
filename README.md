@@ -90,14 +90,13 @@ T2SQL/
 │   │   ├── api/          # /api/chat (SSE), /api/conversations
 │   │   └── db/           # connection, schema introspection, conversation store
 │   └── tests/
-├── frontend/              # Next.js chat UI (Phase 3, in progress)
+├── frontend/              # Next.js chat UI
 ├── db/init/               # Postgres init scripts (schema + Olist CSV load + read-only role)
 ├── models/                # Pretrained LSTM artifacts (Phase 4)
 ├── data/raw/               # Olist CSVs (not committed)
 ├── docs/sql-notes.md       # SQL learning notes
 ├── docs/images/            # README screenshots
-├── prd.md                  # Product requirements
-└── plan.md                 # Day-by-day roadmap
+└── prd.md                  # Product requirements
 ```
 
 ## Security invariants
@@ -150,7 +149,7 @@ ruff check .
 
 ## Status
 
-🚧 In active development — see [`plan.md`](./plan.md) for the day-by-day roadmap.
+🚧 In active development. Scope and requirements live in [`prd.md`](./prd.md).
 
 - ✅ Phase 0 — Postgres + Olist data loaded, SQL fundamentals
 - ✅ Phase 1 — LangGraph agent core: classify → generate → validate → execute → self-correct → summarize
