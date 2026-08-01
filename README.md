@@ -7,6 +7,11 @@ revenue forecasting**. Built on the Brazilian E-Commerce (Olist) dataset.
 > Portfolio + learning project. Goals: (1) master SQL to the level an AI engineer needs,
 > (2) build strong end-to-end deployment skills.
 
+![T2SQL landing screen — "What do you want to know?" with four starter questions](./docs/images/ui-empty-state.png)
+
+Ask in plain English. The agent writes the SQL, runs it against the Olist database, picks a
+suitable visualization, and explains the query it wrote.
+
 ## How it works
 
 A [LangGraph](https://github.com/langchain-ai/langgraph) state machine drives the whole pipeline:
@@ -35,6 +40,35 @@ classify_intent → fetch_schema → generate_sql → validate_sql → execute_s
 The whole flow streams to the client over Server-Sent Events (`POST /api/chat`), so the UI can
 show each step as it happens.
 
+### `decide_visualization` in practice
+
+The same pipeline produces a different chart depending on the shape of the result set — the
+heuristic reads the columns, not the question.
+
+**Ranked categories → horizontal bar.** Ten labelled categories ordered by one measure, so the
+bars are laid out horizontally to keep the category names readable:
+
+![Top 10 product categories by revenue, rendered as a horizontal bar chart above the raw result table](./docs/images/ui-bar-top-categories.png)
+
+| A date/period column → line | A small share breakdown → donut |
+|---|---|
+| ![Monthly revenue rendered as a filled line chart](./docs/images/ui-line-monthly-revenue.png) | ![Top 5 categories by revenue rendered as a donut chart](./docs/images/ui-donut-top5.png) |
+| `month` is ordinal, so the points are connected to show the trend — here the September drop and the November recovery. | Five slices of one total, so relative share is the interesting part and percentages are drawn on the segments. |
+
+Every answer keeps the raw result table directly under the chart, so the numbers behind the
+picture are always one scroll away.
+
+### `summarize` — the SQL, explained
+
+The learning goal is built into the product: every answer carries a collapsible **View SQL &
+explanation** panel with the exact query that ran and a plain-English walkthrough of it.
+
+![The expanded SQL panel showing the generated four-table JOIN and a plain-English explanation beneath it](./docs/images/ui-sql-explanation.png)
+
+Note the join path in that query — it is the one that matters most in this schema. **Revenue is
+not a column**: it is `SUM(olist_order_items.price)`, reached from the category translation table
+through `olist_products` and `olist_order_items`.
+
 ## Stack
 
 | Layer | Tech |
@@ -61,6 +95,7 @@ T2SQL/
 ├── models/                # Pretrained LSTM artifacts (Phase 4)
 ├── data/raw/               # Olist CSVs (not committed)
 ├── docs/sql-notes.md       # SQL learning notes
+├── docs/images/            # README screenshots
 ├── prd.md                  # Product requirements
 └── plan.md                 # Day-by-day roadmap
 ```
@@ -98,6 +133,12 @@ npm run dev                         # http://localhost:3000
 
 On Windows, `start.bat` / `stop.bat` in the repo root do all of the above (Postgres + backend +
 frontend) in one step.
+
+> **Why port 15432?** Postgres listens on **15432** on the host (5432 inside the container).
+> On Windows, WinNAT reserves a block of ports that swallows 5432, and Docker cannot bind it
+> (`bind: An attempt was made to access a socket in a way forbidden by its access permissions`).
+> Check your own machine with `netsh int ipv4 show excludedportrange protocol=tcp`; if 5432 is
+> free for you, set `POSTGRES_PORT=5432` in `.env` and update the two `*_DATABASE_URL` values.
 
 ### Tests
 
